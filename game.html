@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>3D Forest Hunter - Photorealistic Ultra</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Pretendard:wght@400;600;800&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #020617;
+      font-family: 'Pretendard', sans-serif;
+    }
+
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* HUD Layer */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+      z-index: 10;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.82);
+      padding: 14px 28px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    .hud-item {
+      color: #f8fafc;
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: 0.5px;
+      font-family: 'Orbitron', sans-serif;
+    }
+    .hud-item span {
+      color: #38bdf8;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+
+    #hp-bar-container {
+      width: 180px;
+      height: 16px;
+      background: rgba(2, 6, 23, 0.8);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+    }
+    #hp-bar-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #10b981);
+      transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+    }
+
+    /* Radar / Minimap */
+    #radar-container {
+      position: absolute;
+      top: 90px;
+      right: 24px;
+      width: 150px;
+      height: 150px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      border-radius: 50%;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(56, 189, 248, 0.25);
+      overflow: hidden;
+    }
+    #radar-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Ammo & Weapon Display */
+    .weapon-hud {
+      position: absolute;
+      bottom: 28px;
+      right: 28px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 18px 32px;
+      border-radius: 20px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+      pointer-events: auto;
+    }
+    .ammo-count {
+      font-size: 38px;
+      font-weight: 900;
+      color: #fbbf24;
+      letter-spacing: 2px;
+      font-family: 'Orbitron', monospace;
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+    }
+    .weapon-name {
+      font-size: 13px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+    }
+
+    /* ADS Scope Overlay */
+    #scope-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 18;
+      background: radial-gradient(circle at center, transparent 28%, rgba(2,6,23,0.96) 68%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #scope-overlay.active {
+      opacity: 1;
+    }
+    .scope-ring {
+      width: 500px;
+      height: 500px;
+      border: 2px solid rgba(56, 189, 248, 0.65);
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 0 35px rgba(56, 189, 248, 0.35);
+    }
+    .scope-ring::before, .scope-ring::after {
+      content: '';
+      position: absolute;
+      background: rgba(56, 189, 248, 0.85);
+    }
+    .scope-ring::before { top: 50%; left: -60px; right: -60px; height: 1px; }
+    .scope-ring::after { left: 50%; top: -60px; bottom: -60px; width: 1px; }
+
+    /* Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 20;
+      transition: opacity 0.15s ease;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 6px rgba(0,0,0,0.9);
+    }
+    #crosshair::before { top: 15px; left: 2px; width: 28px; height: 2px; }
+    #crosshair::after { top: 2px; left: 15px; width: 2px; height: 28px; }
+    #crosshair .dot {
+      position: absolute;
+      top: 14px; left: 14px;
+      width: 4px; height: 4px;
+      background: #ef4444;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #ef4444;
+    }
+
+    /* Hit Flash */
+    #damage-flash {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      box-shadow: inset 0 0 120px rgba(225, 29, 72, 0.85);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      z-index: 15;
+    }
+
+    /* Controls Hint */
+    .controls-hint {
+      position: absolute;
+      top: 90px;
+      left: 24px;
+      background: rgba(15, 23, 42, 0.8);
+      color: #f1f5f9;
+      padding: 18px 22px;
+      border-radius: 18px;
+      font-size: 13px;
+      line-height: 1.8;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.98));
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      pointer-events: auto;
+      backdrop-filter: blur(20px);
+    }
+    .modal-title {
+      font-family: 'Orbitron', sans-serif;
+      color: #38bdf8;
+      font-size: 48px;
+      font-weight: 900;
+      margin-bottom: 16px;
+      text-shadow: 0 0 35px rgba(56, 189, 248, 0.6);
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .modal-desc {
+      color: #94a3b8;
+      font-size: 15px;
+      margin-bottom: 28px;
+      text-align: center;
+      max-width: 620px;
+      line-height: 1.8;
+    }
+
+    .difficulty-group {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+    .diff-btn {
+      padding: 14px 28px;
+      border-radius: 14px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(15, 23, 42, 0.6);
+      color: #f8fafc;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .diff-btn:hover {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+    }
+    .diff-btn.selected {
+      background: #38bdf8;
+      color: #020617;
+      border-color: #38bdf8;
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+    }
+
+    .start-btn {
+      padding: 18px 64px;
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      color: #ffffff;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 10px 35px rgba(2, 132, 199, 0.5);
+      transition: all 0.25s ease;
+      letter-spacing: 1px;
+    }
+    .start-btn:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 15px 40px rgba(2, 132, 199, 0.7);
+    }
+
+    #final-score-display {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 60px;
+      font-weight: 900;
+      color: #fbbf24;
+      text-shadow: 0 0 30px rgba(251, 191, 36, 0.6);
+      margin: 12px 0;
+    }
+
+    .ranking-box {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 18px;
+      padding: 18px 32px;
+      margin: 15px 0 28px 0;
+      width: 340px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    .ranking-title {
+      color: #fbbf24;
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      border-bottom: 1px dashed rgba(251, 191, 36, 0.3);
+      padding-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    .ranking-list {
+      list-style: none;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .ranking-item {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+    .ranking-item.rank-1 { color: #fbbf24; }
+    .ranking-item.rank-2 { color: #cbd5e1; }
+    .ranking-item.rank-3 { color: #d97706; }
+
+    /* Touch Controls */
+    #touch-controls {
+      position: absolute;
+      bottom: 28px;
+      left: 24px;
+      display: flex;
+      gap: 14px;
+      pointer-events: auto;
+      z-index: 25;
+    }
+    .t-btn {
+      width: 64px;
+      height: 64px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+    }
+    .t-btn:active {
+      background: rgba(56, 189, 248, 0.8);
+      color: #000;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <canvas id="game-canvas"></canvas>
+
+  <div id="damage-flash"></div>
+  <div id="crosshair"><div class="dot"></div></div>
+
+  <!-- ADS Scope overlay -->
+  <div id="scope-overlay">
+    <div class="scope-ring"></div>
+  </div>
+
+  <div id="hud">
+    <div class="top-bar">
+      <div class="hud-item" id="time-display">⏱️ TIME <span id="time-val">03:00</span></div>
+      <div class="hud-item" id="hp-display">
+        ❤️ HP 
+        <div id="hp-bar-container">
+          <div id="hp-bar-fill"></div>
+        </div>
+      </div>
+      <div class="hud-item">
+        🏆 SCORE <span id="score-val">0</span>
+      </div>
+    </div>
+
+    <!-- Minimap Radar -->
+    <div id="radar-container">
+      <canvas id="radar-canvas" width="150" height="150"></canvas>
+    </div>
+
+    <div class="controls-hint">
+      🌲 <b>생태계 사냥 가이드:</b><br>
+      • 시점: <b>마우스 이동</b> (클릭 시 마우스 고정)<br>
+      • 이동: <b>W/A/S/D</b> | 점프/비행: <b>Space</b><br>
+      • 공격: <b>좌클릭</b> | 정밀 조준(ADS): <b>우클릭 홀드</b><br>
+      • 스왑: <b>1번(소총) / 2번(단검)</b> | 재장전: <b>R</b><br>
+      • ⚠️ 총성이 울리면 피식자(사슴, 토끼)는 <b>겁을 먹고 도망치며</b>,<br>
+      &nbsp;&nbsp;포식자(곰, 늑대, 멧돼지)는 <b>사냥꾼을 추격</b>합니다!
+    </div>
+
+    <div id="touch-controls">
+      <div class="t-btn" id="btn-switch">🔄<br>무기</div>
+      <div class="t-btn" id="btn-reload">🔄<br>장전</div>
+      <div class="t-btn" id="btn-fly">🚀<br>비행</div>
+    </div>
+
+    <div class="weapon-hud">
+      <div>
+        <div class="weapon-name" id="weapon-name-display">SNIPER RIFLE</div>
+        <div class="ammo-count" id="ammo-display">30 / 150</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Modal -->
+  <div id="start-modal" class="modal-overlay">
+    <h1 class="modal-title">FOREST HUNTER 3D: REAL WILD</h1>
+    <p class="modal-desc">
+      극대화된 생태계 시뮬레이션을 경험해보세요!<br>
+      소나무·자작나무·활엽수림, 하층 관목, 바위와 함께 세분화된 골격 구조를 가진 곰, 늑대, 사슴, 멧돼지, 토끼가 독자적인 반응 AI로 생동감 있게 숨쉬고 있습니다.
+    </p>
+
+    <div class="difficulty-group">
+      <button class="diff-btn" data-diff="easy">🟢 쉬움 (1.0x)</button>
+      <button class="diff-btn selected" data-diff="normal">🟡 보통 (1.5x)</button>
+      <button class="diff-btn" data-diff="hard">🔴 어려움 (2.2x)</button>
+    </div>
+
+    <button class="start-btn" id="btn-start-game">사냥 시작하기</button>
+  </div>
+
+  <!-- Gameover Modal -->
+  <div id="gameover-modal" class="modal-overlay" style="display: none;">
+    <h1 class="modal-title">HUNT RESULT</h1>
+    <p class="modal-desc" id="gameover-desc">최종 점수가 산출되었습니다!</p>
+    <div id="final-score-display">0</div>
+
+    <div class="ranking-box">
+      <div class="ranking-title">🏆 TOP 3 명예의 전당</div>
+      <div class="ranking-list" id="ranking-list-container"></div>
+    </div>
+
+    <button class="start-btn" id="btn-restart-game">다시 사냥하기</button>
+  </div>
+
+  <script>
+    const GAME_ID = 'real_forest_hunter_ultra_v2';
+    const STORAGE_KEY = 'best_' + GAME_ID;
+
+    function loadBestScores() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (!data) return [0, 0, 0];
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          while (parsed.length < 3) parsed.push(0);
+          return parsed.slice(0, 3);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      return [0, 0, 0];
+    }
+
+    function saveScore(newScore) {
+      if (typeof newScore !== 'number' || isNaN(newScore)) return;
+      let scores = loadBestScores();
+      scores.push(Math.floor(newScore));
+      scores.sort((a, b) => b - a);
+      scores = scores.slice(0, 3);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(scores));
+      } catch (e) {
+        console.error(e);
+      }
+      updateBestScoreUI();
+    }
+
+    function updateBestScoreUI() {
+      const scores = loadBestScores();
+      const listContainer = document.getElementById('ranking-list-container');
+      if (listContainer) {
+        listContainer.innerHTML = '';
+        scores.forEach((sc, idx) => {
+          const item = document.createElement('div');
+          item.className = `ranking-item rank-${idx + 1}`;
+          const medal = idx === 0 ? '🥇 1위' : idx === 1 ? '🥈 2위' : '🥉 3위';
+          item.innerHTML = `<span>${medal}</span><span>${sc.toLocaleString()}점</span>`;
+          listContainer.appendChild(item);
+        });
+      }
+    }
+
+    // --- GAME ENGINE & STATE ---
+    let scene, camera, renderer;
+    let isGameActive = false;
+    let gameTime = 180;
+    let gameTimerInterval = null;
+
+    let hp = 100;
+    let currentScore = 0;
+    let selectedDifficulty = 'normal';
+    let diffMultiplier = 1.5;
+
+    // Player & Camera Rig
+    let playerPos = new THREE.Vector3(0, 2.5, 0);
+    let playerVelocity = new THREE.Vector3();
+    let pitch = 0, yaw = 0;
+    let cameraShake = 0;
+    
+    // Weapons & Viewmodel
+    let currentWeapon = 'rifle';
+    let ammoInMag = 30;
+    let totalAmmo = 150;
+    let isReloading = false;
+    let viewmodelGroup, rifleMesh, knifeMesh;
+    let muzzleFlashLight, muzzleFlashMesh;
+    let recoilOffset = 0;
+    let knifeSwingProgress = 0;
+
+    // World Elements & FX
+    const WORLD_SIZE = 350;
+    let animals = [];
+    let treehouses = [];
+    let particles = [];
+
+    // Sound Synthesizer (Web Audio API)
+    let audioCtx = null;
+
+    function playAudioTone(freq, type, duration, vol = 0.1) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    // Controls
+    const keys = { w: false, a: false, s: false, d: false, space: false, zoom: false };
+
+    // Procedural Noise Generator for Natural Realistic Terrain
+    function simpleNoise(x, z) {
+      return Math.sin(x * 0.01) * Math.cos(z * 0.01) * 6.0 +
+             Math.sin(x * 0.03 + z * 0.025) * 2.8 +
+             Math.cos(x * 0.075) * 1.1;
+    }
+
+    function init() {
+      updateBestScoreUI();
+
+      // Scene setup - Natural Deep Forest Sky & Fog
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x40596b);
+      scene.fog = new THREE.FogExp2(0x40596b, 0.0048);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      // Renderer
+      const canvas = document.getElementById('game-canvas');
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      // Realistic Forest Sunlight & Atmosphere
+      const ambientLight = new THREE.AmbientLight(0x82a5be, 0.5);
+      scene.add(ambientLight);
+
+      const hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x14361e, 0.45);
+      scene.add(hemiLight);
+
+      const sunLight = new THREE.DirectionalLight(0xfff7ed, 1.8);
+      sunLight.position.set(160, 220, 130);
+      sunLight.castShadow = true;
+      sunLight.shadow.mapSize.width = 2048;
+      sunLight.shadow.mapSize.height = 2048;
+      sunLight.shadow.camera.near = 0.5;
+      sunLight.shadow.camera.far = 800;
+      const d = 200;
+      sunLight.shadow.camera.left = -d;
+      sunLight.shadow.camera.right = d;
+      sunLight.shadow.camera.top = d;
+      sunLight.shadow.camera.bottom = -d;
+      sunLight.shadow.bias = -0.0004;
+      scene.add(sunLight);
+
+      // Build Rich Forest Environment
+      createTerrain();
+      createDenseForest();
+      createViewmodel();
+
+      setupEventListeners();
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    // --- RICH TERRAIN & UNDERGROWTH ---
+    function createTerrain() {
+      const groundGeo = new THREE.PlaneGeometry(WORLD_SIZE * 2, WORLD_SIZE * 2, 120, 120);
+      const pos = groundGeo.attributes.position;
+
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        pos.setZ(i, simpleNoise(x, y));
+      }
+      groundGeo.computeVertexNormals();
+
+      const groundMat = new THREE.MeshStandardMaterial({
+        color: 0x1e3a1e,
+        roughness: 0.92,
+        metalness: 0.04,
+        flatShading: true
+      });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Dense Grass & Fern Tufts
+      const grassGeo = new THREE.ConeGeometry(0.25, 0.9, 4);
+      const grassMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.8 });
+      const grassInstanced = new THREE.InstancedMesh(grassGeo, grassMat, 3500);
+      const dummy = new THREE.Object3D();
+
+      for (let i = 0; i < 3500; i++) {
+        const x = (Math.random() - 0.5) * (WORLD_SIZE * 1.85);
+        const z = (Math.random() - 0.5) * (WORLD_SIZE * 1.85);
+        const y = simpleNoise(x, z) + 0.4;
+
+        dummy.position.set(x, y, z);
+        dummy.rotation.y = Math.random() * Math.PI;
+        dummy.scale.set(1 + Math.random() * 0.9, 0.7 + Math.random() * 0.7, 1);
+        dummy.updateMatrix();
+        grassInstanced.setMatrixAt(i, dummy.matrix);
+      }
+      scene.add(grassInstanced);
+    }
+
+    // --- DENSE MULTI-SPECIES FOREST ---
+    function createDenseForest() {
+      const trunkMatWood = new THREE.MeshStandardMaterial({ color: 0x2b1810, roughness: 0.9 });
+      const birchTrunkMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+      
+      const pineLeavesMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.55 });
+      const birchLeavesMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
+      const oakLeavesMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.65 });
+      const rockMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.85 });
+
+      // Spawning Trees (Pines, Birches, Oaks)
+      for (let i = 0; i < 500; i++) {
+        const x = (Math.random() - 0.5) * (WORLD_SIZE * 1.85);
+        const z = (Math.random() - 0.5) * (WORLD_SIZE * 1.85);
+        if (Math.abs(x) < 22 && Math.abs(z) < 22) continue;
+
+        const terrainY = simpleNoise(x, z);
+        const tree = new THREE.Group();
+        const treeType = Math.floor(Math.random() * 3); // 0: Pine, 1: Birch, 2: Oak
+
+        if (treeType === 0) {
+          // Pine Tree
+          const height = 14 + Math.random() * 12;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.85, height * 0.4, 8), trunkMatWood);
+          trunk.position.y = height * 0.2;
+          trunk.castShadow = true;
+          tree.add(trunk);
+
+          for (let tier = 0; tier < 3; tier++) {
+            const size = (3.8 - tier * 0.9) * 1.4;
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(size, height * 0.35, 7), pineLeavesMat);
+            cone.position.y = height * (0.35 + tier * 0.22);
+            cone.castShadow = true;
+            tree.add(cone);
+          }
+        } else if (treeType === 1) {
+          // Birch Tree
+          const height = 11 + Math.random() * 8;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, height * 0.6, 8), birchTrunkMat);
+          trunk.position.y = height * 0.3;
+          trunk.castShadow = true;
+          tree.add(trunk);
+
+          const crown = new THREE.Mesh(new THREE.SphereGeometry(2.8 + Math.random() * 1.2, 8, 8), birchLeavesMat);
+          crown.position.y = height * 0.75;
+          crown.castShadow = true;
+          tree.add(crown);
+        } else {
+          // Broadleaf Oak Tree
+          const height = 10 + Math.random() * 7;
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.95, height * 0.45, 8), trunkMatWood);
+          trunk.position.y = height * 0.22;
+          trunk.castShadow = true;
+          tree.add(trunk);
+
+          const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(3.6 + Math.random() * 1.5, 1), oakLeavesMat);
+          crown.position.y = height * 0.7;
+          crown.castShadow = true;
+          tree.add(crown);
+        }
+
+        tree.position.set(x, terrainY, z);
+        scene.add(tree);
+      }
+
+      // Natural Boulders & Rocks
+      for (let i = 0; i < 150; i++) {
+        const x = (Math.random() - 0.5) * (WORLD_SIZE * 1.85);
+        const z = (Math.random() - 0.5) * (WORLD_SIZE * 1.85);
+        const terrainY = simpleNoise(x, z);
+        const scale = 1.2 + Math.random() * 3.5;
+
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(scale, 1), rockMat);
+        rock.position.set(x, terrainY + scale * 0.35, z);
+        rock.rotation.set(Math.random(), Math.random(), Math.random());
+        rock.castShadow = true;
+        rock.receiveShadow = true;
+        scene.add(rock);
+      }
+
+      // Elevated Treehouse Safe Towers
+      const housePositions = [
+        { x: -80, z: -80 }, { x: 90, z: 90 }, { x: -90, z: 100 }, { x: 100, z: -90 }
+      ];
+
+      housePositions.forEach(pos => {
+        const terrainY = simpleNoise(pos.x, pos.z);
+        const houseGroup = new THREE.Group();
+        const pillarGeo = new THREE.CylinderGeometry(0.45, 0.45, 14, 8);
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x3f2314, roughness: 0.85 });
+
+        [[-4.5, -4.5], [4.5, -4.5], [-4.5, 4.5], [4.5, 4.5]].forEach(off => {
+          const pillar = new THREE.Mesh(pillarGeo, woodMat);
+          pillar.position.set(off[0], 7, off[1]);
+          pillar.castShadow = true;
+          houseGroup.add(pillar);
+        });
+
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(11, 0.7, 11), woodMat);
+        deck.position.set(0, 14, 0);
+        deck.castShadow = true;
+        deck.receiveShadow = true;
+        houseGroup.add(deck);
+
+        const roof = new THREE.Mesh(new THREE.ConeGeometry(8.5, 4.5, 4), new THREE.MeshStandardMaterial({ color: 0x1f130b }));
+        roof.position.set(0, 17.5, 0);
+        roof.rotation.y = Math.PI / 4;
+        houseGroup.add(roof);
+
+        houseGroup.position.set(pos.x, terrainY, pos.z);
+        scene.add(houseGroup);
+
+        treehouses.push({ x: pos.x, z: pos.z, baseY: terrainY, width: 11, height: terrainY + 14.2 });
+      });
+    }
+
+    // --- VIEWMODEL & WEAPON ---
+    function createViewmodel() {
+      viewmodelGroup = new THREE.Group();
+
+      const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.4 });
+      const darkMetal = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.95, roughness: 0.15 });
+      const steelMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.9, roughness: 0.2 });
+
+      // RIFLE
+      rifleMesh = new THREE.Group();
+      
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.7), darkMetal);
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.65), steelMat);
+      barrel.rotation.x = Math.PI / 2;
+      barrel.position.set(0, 0.03, -0.55);
+
+      const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.22), darkMetal);
+      scope.rotation.x = Math.PI / 2;
+      scope.position.set(0, 0.095, -0.1);
+
+      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.24, 0.09), darkMetal);
+      mag.position.set(0, -0.14, -0.05);
+      mag.rotation.x = -0.25;
+
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.12, 0.35), woodMat);
+      stock.position.set(0, -0.02, 0.38);
+
+      rifleMesh.add(body, barrel, scope, mag, stock);
+      rifleMesh.position.set(0.22, -0.2, -0.45);
+
+      // Flash Effect
+      muzzleFlashLight = new THREE.PointLight(0xfbbf24, 0, 10);
+      muzzleFlashLight.position.set(0, 0.03, -0.88);
+      
+      const flashGeo = new THREE.SphereGeometry(0.12, 8, 8);
+      const flashMat = new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0 });
+      muzzleFlashMesh = new THREE.Mesh(flashGeo, flashMat);
+      muzzleFlashMesh.position.copy(muzzleFlashLight.position);
+
+      rifleMesh.add(muzzleFlashLight, muzzleFlashMesh);
+
+      // KNIFE
+      knifeMesh = new THREE.Group();
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22), darkMetal);
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.28, 0.05), steelMat);
+      blade.position.set(0, 0.22, 0);
+
+      knifeMesh.add(handle, blade);
+      knifeMesh.position.set(0.25, -0.22, -0.4);
+      knifeMesh.rotation.set(0.5, -0.4, 0.8);
+      knifeMesh.visible = false;
+
+      viewmodelGroup.add(rifleMesh, knifeMesh);
+      camera.add(viewmodelGroup);
+      scene.add(camera);
+    }
+
+    // --- ANATOMICAL & REALISTIC ANIMAL MODELING WITH BIOMECHANICAL ANIMATION ---
+    function spawnAnimals() {
+      animals.forEach(a => scene.remove(a.mesh));
+      animals = [];
+
+      const configs = [
+        { type: 'bear', count: 8, hp: 8, speed: 0.12, scale: 2.2, isPredator: true },
+        { type: 'wolf', count: 12, hp: 3, speed: 0.18, scale: 1.3, isPredator: true },
+        { type: 'boar', count: 10, hp: 4, speed: 0.15, scale: 1.25, isPredator: true },
+        { type: 'deer', count: 16, hp: 2, speed: 0.22, scale: 1.6, isPredator: false },
+        { type: 'rabbit', count: 18, hp: 1, speed: 0.25, scale: 0.6, isPredator: false },
+        { type: 'bird', count: 16, hp: 1, speed: 0.29, scale: 0.5, isPredator: false }
+      ];
+
+      configs.forEach(cfg => {
+        for (let i = 0; i < cfg.count; i++) {
+          const animalGroup = buildDetailedRealisticAnimal(cfg.type, cfg.scale);
+          
+          const x = (Math.random() - 0.5) * (WORLD_SIZE * 1.65);
+          const z = (Math.random() - 0.5) * (WORLD_SIZE * 1.65);
+          const terrainY = simpleNoise(x, z);
+          const y = (cfg.type === 'bird') ? terrainY + 18 + Math.random() * 14 : terrainY;
+
+          animalGroup.position.set(x, y, z);
+          scene.add(animalGroup);
+
+          animals.push({
+            mesh: animalGroup,
+            type: cfg.type,
+            hp: cfg.hp,
+            maxHp: cfg.hp,
+            speed: cfg.speed * (selectedDifficulty === 'easy' ? 0.85 : selectedDifficulty === 'hard' ? 1.35 : 1.0),
+            scale: cfg.scale,
+            isPredator: cfg.isPredator,
+            isFleeing: false,
+            fleeTimer: 0,
+            dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+            changeDirTimer: 0,
+            legs: animalGroup.userData.legs || [],
+            head: animalGroup.userData.head || null,
+            tail: animalGroup.userData.tail || null,
+            ears: animalGroup.userData.ears || []
+          });
+        }
+      });
+    }
+
+    // --- ANATOMICAL & DETAILED ORGANIC ANIMAL MODELING (Shapes & Extrusions) ---
+    function buildDetailedRealisticAnimal(type, scale) {
+      const group = new THREE.Group();
+
+      let furColor = 0x334155, underbellyColor = 0x64748b;
+      if (type === 'bear') { furColor = 0x24160e; underbellyColor = 0x3d2719; }
+      else if (type === 'wolf') { furColor = 0x475569; underbellyColor = 0x94a3b8; }
+      else if (type === 'boar') { furColor = 0x1c1917; underbellyColor = 0x292524; }
+      else if (type === 'deer') { furColor = 0x854d0e; underbellyColor = 0xfef08a; }
+      else if (type === 'rabbit') { furColor = 0xd1d5db; underbellyColor = 0xffffff; }
+
+      const furMat = new THREE.MeshStandardMaterial({ color: furColor, roughness: 0.8, flatShading: false });
+      const bellyMat = new THREE.MeshStandardMaterial({ color: underbellyColor, roughness: 0.85 });
+      const noseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 });
+      const boneMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+
+      const legs = [];
+      const ears = [];
+
+      // 커스텀 유기적 실루엣 생성기 (Shapes & Extrude)
+      function createOrganicBodyMesh(points, depth, mat) {
+        const shape = new THREE.Shape();
+        shape.moveTo(points[0][0] * scale, points[0][1] * scale);
+        for (let i = 1; i < points.length; i++) {
+          shape.bezierCurveTo(
+            points[i-1][0] * scale, points[i-1][1] * scale,
+            points[i][0] * scale, points[i][1] * scale,
+            points[i][0] * scale, points[i][1] * scale
+          );
+        }
+        const extrudeSettings = {
+          steps: 2,
+          depth: depth * scale,
+          bevelEnabled: true,
+          bevelThickness: 0.2 * scale,
+          bevelSize: 0.2 * scale,
+          bevelSegments: 3
+        };
+        const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        geo.center();
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true;
+        return mesh;
+      }
+
+      if (type === 'bird') {
+        const wingShape = [
+          [0, 0], [0.8, 0.4], [1.5, 0.2], [0.6, -0.3], [0, -0.1]
+        ];
+        const bodyGeo = new THREE.ConeGeometry(0.35 * scale, 1.1 * scale, 12);
+        bodyGeo.rotateX(Math.PI / 2);
+        const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 }));
+        group.add(body);
+
+        const wingL = createOrganicBodyMesh(wingShape, 0.05, furMat);
+        wingL.position.set(-0.6 * scale, 0.1 * scale, 0);
+        wingL.rotation.y = Math.PI / 6;
+        const wingR = createOrganicBodyMesh(wingShape, 0.05, furMat);
+        wingR.position.set(0.6 * scale, 0.1 * scale, 0);
+        wingR.rotation.y = -Math.PI / 6;
+
+        group.add(wingL, wingR);
+        return group;
+      }
+
+      if (type === 'bear') {
+        // 곰 유기적 몸통 및 두상 곡선
+        const torsoPoints = [[-0.8, 0], [-0.9, 0.8], [-0.3, 1.4], [0.5, 1.2], [1.1, 0.5], [0.8, -0.6], [-0.4, -0.7]];
+        const torso = createOrganicBodyMesh(torsoPoints, 1.1, furMat);
+        torso.position.y = 1.2 * scale;
+        group.add(torso);
+
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 1.45 * scale, 1.1 * scale);
+
+        const headPoints = [[-0.4, -0.2], [-0.5, 0.3], [0, 0.5], [0.6, 0.1], [0.4, -0.3]];
+        const headMesh = createOrganicBodyMesh(headPoints, 0.7, furMat);
+        headGroup.add(headMesh);
+
+        [-0.35, 0.35].forEach(offX => {
+          const earPoints = [[0, 0], [0.1, 0.25], [0.25, 0.2], [0.2, -0.05]];
+          const ear = createOrganicBodyMesh(earPoints, 0.1, furMat);
+          ear.position.set(offX * scale, 0.35 * scale, 0);
+          headGroup.add(ear);
+          ears.push(ear);
+        });
+
+        group.add(headGroup);
+        group.userData.head = headGroup;
+
+        // 다리
+        [[-0.45, 0.6, -0.65], [0.45, 0.6, -0.65], [-0.48, 0.6, 0.65], [0.48, 0.6, 0.65]].forEach(pos => {
+          const legPoints = [[-0.2, 0.5], [-0.15, -0.4], [0.2, -0.5], [0.25, 0.4]];
+          const legGroup = createOrganicBodyMesh(legPoints, 0.35, furMat);
+          legGroup.position.set(pos[0] * scale, pos[1] * scale, pos[2] * scale);
+          group.add(legGroup);
+          legs.push(legGroup);
+        });
+
+      } else if (type === 'deer') {
+        // 사슴 유기적 몸통 및 뿔 곡선
+        const torsoPoints = [[-0.5, 0], [-0.4, 0.6], [0.3, 0.7], [0.9, 0.2], [0.7, -0.5], [-0.2, -0.5]];
+        const torso = createOrganicBodyMesh(torsoPoints, 0.75, furMat);
+        torso.position.set(0, 1.25 * scale, 0);
+        group.add(torso);
+
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 1.8 * scale, 0.75 * scale);
+
+        const headPoints = [[-0.3, -0.2], [-0.2, 0.3], [0.3, 0.2], [0.6, -0.1], [0.2, -0.3]];
+        const headMesh = createOrganicBodyMesh(headPoints, 0.45, furMat);
+        headGroup.add(headMesh);
+
+        // 정교한 곡면 뿔
+        [-0.18, 0.18].forEach(offX => {
+          const antlerPoints = [[0, 0], [0.1, 0.4], [0.3, 0.8], [0.15, 1.1], [-0.1, 0.7]];
+          const antler = createOrganicBodyMesh(antlerPoints, 0.08, boneMat);
+          antler.position.set(offX * scale, 0.3 * scale, -0.1 * scale);
+          headGroup.add(antler);
+        });
+
+        [-0.25, 0.25].forEach(offX => {
+          const earPoints = [[0, 0], [0.15, 0.3], [0.05, 0.4], [-0.1, 0.1]];
+          const ear = createOrganicBodyMesh(earPoints, 0.08, furMat);
+          ear.position.set(offX * scale, 0.2 * scale, -0.15 * scale);
+          headGroup.add(ear);
+          ears.push(ear);
+        });
+
+        group.add(headGroup);
+        group.userData.head = headGroup;
+
+        // 관절 다리
+        [[-0.22, 0.65, -0.5], [0.22, 0.65, -0.5], [-0.22, 0.65, 0.5], [0.22, 0.65, 0.5]].forEach(pos => {
+          const legPoints = [[-0.1, 0.7], [-0.05, -0.6], [0.08, -0.7], [0.12, 0.6]];
+          const legGroup = createOrganicBodyMesh(legPoints, 0.2, furMat);
+          legGroup.position.set(pos[0] * scale, pos[1] * scale, pos[2] * scale);
+          group.add(legGroup);
+          legs.push(legGroup);
+        });
+
+      } else if (type === 'wolf') {
+        // 늑대 유기적 실루엣
+        const torsoPoints = [[-0.4, 0], [-0.3, 0.5], [0.4, 0.5], [0.8, -0.1], [0.5, -0.4], [-0.2, -0.4]];
+        const torso = createOrganicBodyMesh(torsoPoints, 0.6, furMat);
+        torso.position.y = 0.85 * scale;
+        group.add(torso);
+
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 1.15 * scale, 0.75 * scale);
+
+        const headPoints = [[-0.25, -0.1], [-0.1, 0.3], [0.3, 0.1], [0.5, -0.1], [0.1, -0.25]];
+        const headMesh = createOrganicBodyMesh(headPoints, 0.4, furMat);
+        headGroup.add(headMesh);
+
+        [-0.18, 0.18].forEach(offX => {
+          const earPoints = [[0, 0], [0.1, 0.3], [-0.05, 0.25]];
+          const ear = createOrganicBodyMesh(earPoints, 0.06, furMat);
+          ear.position.set(offX * scale, 0.25 * scale, 0);
+          headGroup.add(ear);
+          ears.push(ear);
+        });
+
+        group.add(headGroup);
+        group.userData.head = headGroup;
+
+        [[-0.22, 0.42, -0.48], [0.22, 0.42, -0.48], [-0.22, 0.42, 0.48], [0.22, 0.42, 0.48]].forEach(pos => {
+          const legPoints = [[-0.08, 0.45], [-0.04, -0.4], [0.08, -0.45], [0.1, 0.4]];
+          const legGroup = createOrganicBodyMesh(legPoints, 0.18, furMat);
+          legGroup.position.set(pos[0] * scale, pos[1] * scale, pos[2] * scale);
+          group.add(legGroup);
+          legs.push(legGroup);
+        });
+
+      } else if (type === 'boar') {
+        // 멧돼지 쐐기형 실루엣
+        const torsoPoints = [[-0.6, -0.2], [-0.5, 0.6], [0.2, 0.7], [0.9, 0.1], [0.6, -0.5], [-0.3, -0.5]];
+        const torso = createOrganicBodyMesh(torsoPoints, 0.85, furMat);
+        torso.position.y = 0.75 * scale;
+        group.add(torso);
+
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 0.85 * scale, 0.7 * scale);
+
+        const headPoints = [[-0.3, -0.2], [-0.1, 0.4], [0.5, -0.2], [0.1, -0.4]];
+        const headMesh = createOrganicBodyMesh(headPoints, 0.55, furMat);
+        headGroup.add(headMesh);
+
+        group.add(headGroup);
+        group.userData.head = headGroup;
+
+        [[-0.28, 0.35, -0.45], [0.28, 0.35, -0.45], [-0.28, 0.35, 0.45], [0.28, 0.35, 0.45]].forEach(pos => {
+          const legPoints = [[-0.12, 0.35], [-0.08, -0.35], [0.1, -0.35], [0.12, 0.35]];
+          const legGroup = createOrganicBodyMesh(legPoints, 0.25, furMat);
+          legGroup.position.set(pos[0] * scale, pos[1] * scale, pos[2] * scale);
+          group.add(legGroup);
+          legs.push(legGroup);
+        });
+
+      } else {
+        // 토끼 유기적 실루엣
+        const torsoPoints = [[-0.3, -0.1], [-0.2, 0.4], [0.2, 0.5], [0.4, 0], [0.1, -0.3]];
+        const torso = createOrganicBodyMesh(torsoPoints, 0.4, furMat);
+        torso.position.y = 0.45 * scale;
+        group.add(torso);
+
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 0.65 * scale, 0.35 * scale);
+
+        const headPoints = [[-0.15, -0.1], [0, 0.2], [0.25, 0], [0.1, -0.15]];
+        const headMesh = createOrganicBodyMesh(headPoints, 0.28, furMat);
+        headGroup.add(headMesh);
+
+        [-0.12, 0.12].forEach(offX => {
+          const earPoints = [[0, 0], [0.08, 0.45], [-0.05, 0.4]];
+          const ear = createOrganicBodyMesh(earPoints, 0.05, bellyMat);
+          ear.position.set(offX * scale, 0.2 * scale, -0.05 * scale);
+          headGroup.add(ear);
+          ears.push(ear);
+        });
+
+        group.add(headGroup);
+        group.userData.head = headGroup;
+
+        [[-0.18, 0.25, -0.2], [0.18, 0.25, -0.2], [-0.15, 0.2, 0.25], [0.15, 0.2, 0.25]].forEach((pos, i) => {
+          const legPoints = [[-0.08, 0.2], [-0.05, -0.2], [0.08, -0.2], [0.08, 0.2]];
+          const legGroup = createOrganicBodyMesh(legPoints, 0.12, furMat);
+          legGroup.position.set(pos[0] * scale, pos[1] * scale, pos[2] * scale);
+          group.add(legGroup);
+          legs.push(legGroup);
+        });
+      }
+
+      group.userData.legs = legs;
+      group.userData.ears = ears;
+      return group;
+    }
+
+    // --- CONTROLS & LISTENERS ---
+    function setupEventListeners() {
+      document.body.addEventListener('click', () => {
+        if (isGameActive && !document.pointerLockElement) {
+          document.body.requestPointerLock();
+        }
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isGameActive || !document.pointerLockElement) return;
+        const sensitivity = keys.zoom ? 0.0009 : 0.0022;
+        yaw -= e.movementX * sensitivity;
+        pitch -= e.movementY * sensitivity;
+        pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (!isGameActive) return;
+        const k = e.key.toLowerCase();
+        if (k === 'w') keys.w = true;
+        if (k === 'a') keys.a = true;
+        if (k === 's') keys.s = true;
+        if (k === 'd') keys.d = true;
+        if (e.code === 'Space') keys.space = true;
+
+        if (k === '1') switchWeapon('rifle');
+        if (k === '2') switchWeapon('knife');
+        if (k === 'r') reloadWeapon();
+      });
+
+      document.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 'w') keys.w = false;
+        if (k === 'a') keys.a = false;
+        if (k === 's') keys.s = false;
+        if (k === 'd') keys.d = false;
+        if (e.code === 'Space') keys.space = false;
+      });
+
+      document.addEventListener('mousedown', (e) => {
+        if (!isGameActive) return;
+        if (e.button === 0) triggerAttack();
+        if (e.button === 2) toggleZoom(true);
+      });
+
+      document.addEventListener('mouseup', (e) => {
+        if (e.button === 2) toggleZoom(false);
+      });
+
+      document.addEventListener('contextmenu', e => e.preventDefault());
+
+      // Touch Buttons
+      document.getElementById('btn-switch').addEventListener('click', () => {
+        switchWeapon(currentWeapon === 'rifle' ? 'knife' : 'rifle');
+      });
+      document.getElementById('btn-reload').addEventListener('click', reloadWeapon);
+      
+      const flyBtn = document.getElementById('btn-fly');
+      flyBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.space = true; });
+      flyBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.space = false; });
+
+      // Modals
+      document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedDifficulty = btn.getAttribute('data-diff');
+          diffMultiplier = selectedDifficulty === 'easy' ? 1.0 : selectedDifficulty === 'hard' ? 2.2 : 1.5;
+        });
+      });
+
+      document.getElementById('btn-start-game').addEventListener('click', startGame);
+      document.getElementById('btn-restart-game').addEventListener('click', startGame);
+    }
+
+    function switchWeapon(type) {
+      if (isReloading) return;
+      currentWeapon = type;
+      if (type === 'rifle') {
+        rifleMesh.visible = true;
+        knifeMesh.visible = false;
+        document.getElementById('weapon-name-display').innerText = 'SNIPER RIFLE';
+        updateAmmoUI();
+      } else {
+        rifleMesh.visible = false;
+        knifeMesh.visible = true;
+        document.getElementById('weapon-name-display').innerText = 'HUNTING KNIFE';
+        document.getElementById('ammo-display').innerText = '∞';
+      }
+    }
+
+    function toggleZoom(enable) {
+      keys.zoom = enable;
+      camera.fov = enable ? 24 : 70;
+      camera.updateProjectionMatrix();
+
+      const scopeOverlay = document.getElementById('scope-overlay');
+      const crosshair = document.getElementById('crosshair');
+
+      if (enable) {
+        scopeOverlay.classList.add('active');
+        crosshair.style.opacity = '0';
+      } else {
+        scopeOverlay.classList.remove('active');
+        crosshair.style.opacity = '1';
+      }
+    }
+
+    function reloadWeapon() {
+      if (currentWeapon !== 'rifle' || isReloading || ammoInMag === 30 || totalAmmo <= 0) return;
+      isReloading = true;
+      playAudioTone(300, 'square', 0.2, 0.08);
+      document.getElementById('weapon-name-display').innerText = 'RELOADING...';
+
+      setTimeout(() => {
+        const needed = 30 - ammoInMag;
+        const add = Math.min(needed, totalAmmo);
+        ammoInMag += add;
+        totalAmmo -= add;
+        isReloading = false;
+        document.getElementById('weapon-name-display').innerText = 'SNIPER RIFLE';
+        updateAmmoUI();
+      }, 1400);
+    }
+
+    function updateAmmoUI() {
+      if (currentWeapon === 'rifle') {
+        document.getElementById('ammo-display').innerText = `${ammoInMag} / ${totalAmmo}`;
+      }
+    }
+
+    // --- SHOOTING & ECOLOGICAL ALARM ---
+    function triggerAttack() {
+      if (currentWeapon === 'rifle') {
+        if (ammoInMag <= 0) {
+          reloadWeapon();
+          return;
+        }
+        if (isReloading) return;
+
+        ammoInMag--;
+        updateAmmoUI();
+
+        // Gunshot Sound
+        playAudioTone(120, 'sawtooth', 0.25, 0.35);
+
+        // Trigger Ecological Sound Alarm for nearby prey animals
+        alertNearbyAnimalsToGunshot();
+
+        // Recoil & FX
+        recoilOffset = 0.12;
+        cameraShake = 0.1;
+        muzzleFlashLight.intensity = 5;
+        muzzleFlashMesh.material.opacity = 1;
+        setTimeout(() => {
+          muzzleFlashLight.intensity = 0;
+          muzzleFlashMesh.material.opacity = 0;
+        }, 45);
+
+        // Raycasting
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+        const intersects = raycaster.intersectObjects(scene.children, true);
+        for (let hit of intersects) {
+          let root = hit.object;
+          while (root.parent && root.parent !== scene) root = root.parent;
+
+          const target = animals.find(a => a.mesh === root);
+          if (target) {
+            damageAnimal(target, 1);
+            spawnBloodEffect(hit.point);
+            break;
+          } else {
+            spawnImpactParticles(hit.point);
+            break;
+          }
+        }
+      } else {
+        // Knife Attack
+        knifeSwingProgress = 1.0;
+        cameraShake = 0.05;
+        playAudioTone(450, 'triangle', 0.1, 0.15);
+
+        animals.forEach(a => {
+          if (playerPos.distanceTo(a.mesh.position) < 5.2) {
+            damageAnimal(a, 2);
+            spawnBloodEffect(a.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)));
+          }
+        });
+      }
+    }
+
+    function alertNearbyAnimalsToGunshot() {
+      animals.forEach(a => {
+        const dist = a.mesh.position.distanceTo(playerPos);
+        if (dist < 90) {
+          if (!a.isPredator) {
+            // Prey panics and flees away from shot origin
+            a.isFleeing = true;
+            a.fleeTimer = 180; // 3 seconds panic run
+            const fleeDir = new THREE.Vector3().subVectors(a.mesh.position, playerPos);
+            fleeDir.y = 0;
+            a.dir = fleeDir.normalize();
+          }
+        }
+      });
+    }
+
+    function spawnBloodEffect(point) {
+      playAudioTone(180, 'sine', 0.15, 0.2);
+      for (let i = 0; i < 12; i++) {
+        const pGeo = new THREE.SphereGeometry(0.08 + Math.random() * 0.06, 4, 4);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xd97706 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.position.copy(point);
+        
+        const vel = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.28,
+          Math.random() * 0.28,
+          (Math.random() - 0.5) * 0.28
+        );
+        scene.add(p);
+        particles.push({ mesh: p, vel, life: 25 });
+      }
+    }
+
+    function spawnImpactParticles(point) {
+      for (let i = 0; i < 6; i++) {
+        const pGeo = new THREE.SphereGeometry(0.06, 4, 4);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.position.copy(point);
+        
+        const vel = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.18,
+          Math.random() * 0.18,
+          (Math.random() - 0.5) * 0.18
+        );
+        scene.add(p);
+        particles.push({ mesh: p, vel, life: 18 });
+      }
+    }
+
+    function damageAnimal(animal, damage) {
+      animal.hp -= damage;
+      if (animal.hp <= 0) {
+        let pts = 100;
+        if (animal.type === 'bear') pts = 550;
+        else if (animal.type === 'wolf') pts = 380;
+        else if (animal.type === 'boar') pts = 300;
+        else if (animal.type === 'deer') pts = 240;
+        else if (animal.type === 'bird') pts = 400;
+
+        currentScore += Math.floor(pts * diffMultiplier);
+        document.getElementById('score-val').innerText = currentScore.toLocaleString();
+
+        scene.remove(animal.mesh);
+        animals = animals.filter(a => a !== animal);
+      }
+    }
+
+    function takeDamage(amt) {
+      if (!isGameActive) return;
+      hp = Math.max(0, hp - amt);
+      document.getElementById('hp-bar-fill').style.width = hp + '%';
+
+      cameraShake = 0.35;
+      playAudioTone(100, 'sawtooth', 0.2, 0.4);
+
+      const flash = document.getElementById('damage-flash');
+      flash.style.opacity = '1';
+      setTimeout(() => flash.style.opacity = '0', 200);
+
+      if (hp <= 0) endGame();
+    }
+
+    // --- MINIMAP RADAR UPDATE ---
+    function updateRadar() {
+      const canvas = document.getElementById('radar-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 150, 150);
+
+      const cx = 75, cy = 75, scale = 0.32;
+
+      // Radar Ring Grids
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 32, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 64, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Animal Dots
+      animals.forEach(a => {
+        const dx = (a.mesh.position.x - playerPos.x) * scale;
+        const dz = (a.mesh.position.z - playerPos.z) * scale;
+        if (dx * dx + dz * dz < 70 * 70) {
+          ctx.fillStyle = a.isPredator ? '#ef4444' : '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(cx + dx, cy + dz, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Player Center
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // --- GAME LOOP & PHYSICS ---
+    function startGame() {
+      isGameActive = true;
+      gameTime = 180;
+      hp = 100;
+      currentScore = 0;
+      ammoInMag = 30;
+      totalAmmo = 150;
+      pitch = 0; yaw = 0;
+
+      playerPos.set(0, simpleNoise(0, 0) + 2.5, 0);
+      playerVelocity.set(0, 0, 0);
+
+      document.getElementById('hp-bar-fill').style.width = '100%';
+      document.getElementById('score-val').innerText = '0';
+      document.getElementById('start-modal').style.display = 'none';
+      document.getElementById('gameover-modal').style.display = 'none';
+
+      switchWeapon('rifle');
+      spawnAnimals();
+
+      if (gameTimerInterval) clearInterval(gameTimerInterval);
+      gameTimerInterval = setInterval(() => {
+        if (!isGameActive) return;
+        gameTime--;
+        const m = Math.floor(gameTime / 60).toString().padStart(2, '0');
+        const s = (gameTime % 60).toString().padStart(2, '0');
+        document.getElementById('time-val').innerText = `${m}:${s}`;
+
+        if (gameTime <= 0) endGame();
+      }, 1000);
+    }
+
+    function endGame() {
+      isGameActive = false;
+      if (gameTimerInterval) clearInterval(gameTimerInterval);
+      if (document.exitPointerLock) document.exitPointerLock();
+
+      const finalScore = Math.floor(currentScore + hp * 12);
+      saveScore(finalScore);
+
+      document.getElementById('gameover-modal').style.display = 'flex';
+      document.getElementById('final-score-display').innerText = finalScore.toLocaleString();
+    }
+
+    function updatePhysics() {
+      if (!isGameActive) return;
+
+      // Particles Update
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.mesh.position.add(pt.vel);
+        pt.life--;
+        if (pt.life <= 0) {
+          scene.remove(pt.mesh);
+          particles.splice(i, 1);
+        }
+      }
+
+      // Flight & Gravity
+      if (keys.space) {
+        playerVelocity.y += 0.045;
+        if (playerVelocity.y > 0.5) playerVelocity.y = 0.5;
+      }
+      playerVelocity.y -= 0.018;
+
+      const moveSpeed = 0.26;
+      const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+      const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+      const moveDir = new THREE.Vector3();
+
+      if (keys.w) moveDir.add(forward);
+      if (keys.s) moveDir.sub(forward);
+      if (keys.a) moveDir.sub(side);
+      if (keys.d) moveDir.add(side);
+
+      if (moveDir.length() > 0) moveDir.normalize().multiplyScalar(moveSpeed);
+
+      playerPos.add(moveDir);
+      playerPos.y += playerVelocity.y;
+
+      // Terrain & Treehouse Heights
+      let terrainFloor = simpleNoise(playerPos.x, playerPos.z) + 2.5;
+
+      treehouses.forEach(house => {
+        if (Math.abs(playerPos.x - house.x) < house.width / 2 && Math.abs(playerPos.z - house.z) < house.width / 2) {
+          if (playerPos.y >= house.height) terrainFloor = house.height + 2.5;
+        }
+      });
+
+      if (playerPos.y <= terrainFloor) {
+        playerPos.y = terrainFloor;
+        playerVelocity.y = 0;
+      }
+
+      // Boundaries
+      playerPos.x = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, playerPos.x));
+      playerPos.z = Math.max(-WORLD_SIZE, Math.min(WORLD_SIZE, playerPos.z));
+
+      // Camera Shake & Position
+      camera.position.copy(playerPos);
+      
+      if (cameraShake > 0) {
+        camera.position.x += (Math.random() - 0.5) * cameraShake;
+        camera.position.y += (Math.random() - 0.5) * cameraShake;
+        cameraShake -= 0.01;
+      }
+
+      camera.rotation.set(pitch, yaw, 0, 'YXZ');
+
+      // Weapon Animations
+      if (recoilOffset > 0) recoilOffset -= 0.01;
+      if (rifleMesh) rifleMesh.position.z = -0.45 + recoilOffset;
+
+      if (knifeSwingProgress > 0) {
+        knifeSwingProgress -= 0.09;
+        knifeMesh.rotation.x = 0.5 + Math.sin(knifeSwingProgress * Math.PI) * 0.9;
+      }
+
+      // ORGANIC FAUNA ANIMATION & ECOLOGICAL AI
+      const time = Date.now() * 0.007;
+      animals.forEach(animal => {
+        if (animal.type === 'bird') {
+          animal.mesh.position.addScaledVector(animal.dir, animal.speed);
+          animal.mesh.position.y += Math.sin(time) * 0.04;
+          if (Math.abs(animal.mesh.position.x) > WORLD_SIZE) animal.dir.x *= -1;
+          return;
+        }
+
+        // Realistic Gait Biomechanical Movement (Quadruped Alternate Leg Swing)
+        const walkCycle = Math.sin(time * 3.5);
+        animal.legs.forEach((leg, idx) => {
+          const offset = (idx % 2 === 0) ? 1 : -1;
+          leg.rotation.x = walkCycle * 0.55 * offset;
+        });
+
+        // Tail Wagging & Ears Twitching
+        if (animal.tail) {
+          animal.tail.rotation.z = Math.sin(time * 2.5) * 0.25;
+        }
+        animal.ears.forEach(ear => {
+          ear.rotation.x = Math.sin(time * 4.0) * 0.08;
+        });
+
+        // Subtle Head Bobbing
+        if (animal.head) {
+          animal.head.rotation.y = Math.sin(time * 1.1) * 0.12;
+          animal.head.rotation.x = Math.cos(time * 1.5) * 0.06;
+        }
+
+        const dist = animal.mesh.position.distanceTo(playerPos);
+
+        if (animal.isPredator && dist < 38 && playerPos.y < simpleNoise(playerPos.x, playerPos.z) + 5.5) {
+          // Predator Chase AI
+          const chaseDir = new THREE.Vector3().subVectors(playerPos, animal.mesh.position);
+          chaseDir.y = 0;
+          chaseDir.normalize();
+
+          animal.mesh.position.addScaledVector(chaseDir, animal.speed * 1.35);
+          animal.mesh.position.y = simpleNoise(animal.mesh.position.x, animal.mesh.position.z);
+          animal.mesh.lookAt(playerPos.x, animal.mesh.position.y, playerPos.z);
+
+          if (dist < 2.9) takeDamage(0.75);
+        } else if (animal.isFleeing) {
+          // Panicked Fleeing Prey AI
+          animal.fleeTimer--;
+          if (animal.fleeTimer <= 0) animal.isFleeing = false;
+
+          animal.mesh.position.addScaledVector(animal.dir, animal.speed * 1.6);
+          animal.mesh.position.y = simpleNoise(animal.mesh.position.x, animal.mesh.position.z);
+          animal.mesh.lookAt(
+            animal.mesh.position.x + animal.dir.x,
+            animal.mesh.position.y,
+            animal.mesh.position.z + animal.dir.z
+          );
+        } else {
+          // Wander & Grazing AI
+          animal.changeDirTimer--;
+          if (animal.changeDirTimer <= 0) {
+            animal.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+            animal.changeDirTimer = 90 + Math.random() * 110;
+          }
+
+          animal.mesh.position.addScaledVector(animal.dir, animal.speed);
+          animal.mesh.position.y = simpleNoise(animal.mesh.position.x, animal.mesh.position.z);
+          animal.mesh.lookAt(
+            animal.mesh.position.x + animal.dir.x,
+            animal.mesh.position.y,
+            animal.mesh.position.z + animal.dir.z
+          );
+
+          if (Math.abs(animal.mesh.position.x) > WORLD_SIZE * 0.88) animal.dir.x *= -1;
+          if (Math.abs(animal.mesh.position.z) > WORLD_SIZE * 0.88) animal.dir.z *= -1;
+        }
+      });
+
+      updateRadar();
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      updatePhysics();
+      renderer.render(scene, camera);
+    }
+
+    window.onload = () => {
+      init();
+      animate();
+    };
+  </script>
+</body>
+</html>
