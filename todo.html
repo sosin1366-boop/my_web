@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 스터디 플래너</title>
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --border-color: #e2e8f0;
+            --success-color: #22c55e;
+            --accent-orange: #f97316;
+            --input-bg: #ffffff;
+            --badge-bg: #e0e7ff;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+        }
+
+        body.dark-mode {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border-color: #334155;
+            --input-bg: #0f172a;
+            --badge-bg: #312e81;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 16px 12px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* 로그인 게이트 스크린 */
+        .login-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            gap: 16px;
+            margin: auto 0;
+        }
+
+        .google-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #ffffff;
+            color: #374151;
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .google-btn:hover {
+            background-color: #f9fafb;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* 프로필 헤더 BAR */
+        .user-profile-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 10px 16px;
+            border-radius: 16px;
+            gap: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--border-color);
+        }
+
+        .user-name {
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .sync-status {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            margin-left: 8px;
+            font-weight: 500;
+        }
+
+        .error-banner {
+            background-color: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+
+        body.dark-mode .error-banner {
+            background-color: #451a1a;
+            color: #fca5a5;
+            border-color: #7f1d1d;
+        }
+
+        /* 반응형 2열 그리드 */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 768px) {
+            body {
+                padding: 24px 16px;
+            }
+            .container {
+                gap: 20px;
+            }
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+        }
+
+        /* 카드 공통 스타일 */
+        .card-box {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 768px) {
+            .card-box {
+                padding: 20px;
+            }
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-main);
+        }
+
+        /* 상단 헤더 */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-sm);
+            gap: 10px;
+        }
+
+        .date-display {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+        }
+
+        .quote-box {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            font-style: italic;
+            border-left: 3px solid var(--primary-color);
+            padding-left: 8px;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 220px;
+        }
+
+        @media (min-width: 480px) {
+            .quote-box {
+                max-width: 100%;
+            }
+        }
+
+        .theme-toggle-btn {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 7px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* 폼 요소 모바일 유연한 정렬 */
+        .form-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .form-row > * {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        input, select, textarea {
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-main);
+            border-radius: 10px;
+            outline: none;
+            width: 100%;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .btn {
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--border-color);
+            color: var(--text-main);
+        }
+
+        /* 프로그레스 바 */
+        .progress-container {
+            margin-bottom: 12px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background-color: var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 6px;
+        }
+
+        /* 리스트 영역 높이 제한 & 깔끔한 스크롤 */
+        .list-container {
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 2px;
+        }
+
+        .list-container::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .list-container::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 4px;
+        }
+
+        /* 카드 내부 아이템 */
+        .item-card {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            gap: 8px;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: var(--text-sub);
+            opacity: 0.7;
+        }
+
+        .todo-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .todo-text {
+            word-break: break-word;
+            font-size: 0.85rem;
+        }
+
+        .subject-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background-color: var(--badge-bg);
+            color: var(--primary-color);
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .delete-btn:hover {
+            color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        /* 터치 반응형 탭 스크롤 */
+        .subject-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .subject-tabs::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .tab-btn {
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-sub);
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .tab-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* 공책 영역 스타일 정의 */
+        .notebook-wrapper {
+            position: relative;
+            background-color: #fdfbf7;
+            border-radius: 12px;
+            padding: 12px 12px 12px 38px;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e0dacf;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        body.dark-mode .notebook-wrapper {
+            background-color: #1a2332;
+            border-color: #2e3b4e;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        .notebook-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 30px;
+            width: 2px;
+            background-color: #ff8a8a;
+            opacity: 0.7;
+            z-index: 1;
+        }
+
+        .notebook-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 10px;
+            width: 6px;
+            background: repeating-linear-gradient(
+                to bottom,
+                #94a3b8 0px,
+                #94a3b8 6px,
+                transparent 6px,
+                transparent 22px
+            );
+            border-radius: 4px;
+            opacity: 0.5;
+        }
+
+        .note-textarea {
+            width: 100%;
+            height: 160px;
+            resize: vertical;
+            border: none;
+            background: repeating-linear-gradient(
+                transparent,
+                transparent 25px,
+                #d8e2ec 26px
+            );
+            line-height: 26px;
+            font-size: 0.88rem;
+            color: #2c3e50;
+            font-family: 'Georgia', 'Courier New', serif, 'Malgun Gothic', sans-serif;
+            padding: 0 4px;
+            outline: none;
+            box-sizing: border-box;
+            background-attachment: local;
+        }
+
+        body.dark-mode .note-textarea {
+            color: #e2e8f0;
+            background: repeating-linear-gradient(
+                transparent,
+                transparent 25px,
+                #334155 26px
+            );
+        }
+
+        .export-tools {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .export-btn {
+            background-color: var(--badge-bg);
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+            padding: 5px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .export-btn:hover {
+            background-color: var(--primary-color);
+            color: #ffffff;
+        }
+
+        .info-footer {
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-sub);
+            margin-top: 4px;
+            margin-bottom: 16px;
+        }
+
+        .exam-badge {
+            font-size: 0.7rem;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background-color: #fef3c7;
+            color: #d97706;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        body.dark-mode .exam-badge {
+            background-color: #78350f;
+            color: #fef3c7;
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                flex-direction: column;
+            }
+            .form-row > * {
+                width: 100% !important;
+            }
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // ==========================================
+        // ⚙️ [제공해주신 파이어베이스 실제 설정값]
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBy3QJIpGbwVmHFko9NdCKH_KFu1DUeLGQ",
+            authDomain: "my-web-6dbf6.firebaseapp.com",
+            projectId: "my-web-6dbf6",
+            storageBucket: "my-web-6dbf6.firebasestorage.app",
+            messagingSenderId: "754415871642",
+            appId: "1:754415871642:web:12947b23c9a7211ecb6123"
+        };
+
+        const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'study-planner-app';
+
+        let app, auth, db;
+        let currentUser = null;
+        let saveTimeout = null;
+        let isLocalMode = false;
+
+        // 시스템 초기화
+        try {
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } else {
+                enableLocalMode("파이어베이스 설정값이 비어있어 로컬 모드(localStorage)로 동작합니다.");
+            }
+        } catch (err) {
+            enableLocalMode("파이어베이스 초기화 오류: " + err.message);
+        }
+
+        function enableLocalMode(reason) {
+            isLocalMode = true;
+            console.warn(reason);
+            window.addEventListener('DOMContentLoaded', () => {
+                const banner = document.getElementById('modeStatusBanner');
+                if (banner) {
+                    banner.style.display = 'block';
+                    banner.innerHTML = `⚠️ <b>오프라인 연습 모드:</b> ${reason}`;
+                }
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appScreen').style.display = 'flex';
+                document.getElementById('syncStatus').innerText = '로컬 저장';
+                window.loadAllLocalData();
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const authErrorDisplay = document.getElementById('authErrorDisplay');
+
+            if (loginBtn) {
+                loginBtn.addEventListener('click', async () => {
+                    authErrorDisplay.style.display = 'none';
+                    if (isLocalMode) return;
+                    try {
+                        const provider = new GoogleAuthProvider();
+                        await signInWithPopup(auth, provider);
+                    } catch (error) {
+                        console.error("Login Error:", error);
+                        authErrorDisplay.style.display = 'block';
+                        if (error.code === 'auth/unauthorized-domain') {
+                            authErrorDisplay.innerHTML = `❌ <b>도메인 승인 필요 [auth/unauthorized-domain]</b><br>
+                            Firebase 콘솔 -> Authentication -> Settings -> Authorized domains에 현재 도메인을 추가해 주세요.<br>
+                            <button class="btn btn-secondary" style="margin-top:8px; font-size:0.75rem;" onclick="window.enableLocalMode('도메인 미승인으로 로컬 연습 모드로 전환합니다.')">오프라인 연습 모드로 계속하기</button>`;
+                        } else {
+                            authErrorDisplay.innerHTML = `❌ 로그인 실패 [${error.code}]: ${error.message}`;
+                        }
+                    }
+                });
+            }
+
+            window.enableLocalMode = enableLocalMode;
+
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    if (auth && !isLocalMode) {
+                        signOut(auth);
+                    } else if (isLocalMode) {
+                        location.reload();
+                    }
+                });
+            }
+
+            if (auth && !isLocalMode) {
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('userAvatar').src = user.photoURL || 'https://placehold.co/100x100?text=User';
+                        document.getElementById('userName').innerText = user.displayName || '사용자';
+                        document.getElementById('loginScreen').style.display = 'none';
+                        document.getElementById('appScreen').style.display = 'flex';
+                        
+                        loadCloudTodos();
+                    } else {
+                        currentUser = null;
+                        document.getElementById('loginScreen').style.display = 'flex';
+                        document.getElementById('appScreen').style.display = 'none';
+                    }
+                });
+            }
+        });
+
+        // ☁️ 클라우드 저장 (0.6초 디바운싱)
+        window.saveTodosToCloud = function(todosList) {
+            if (isLocalMode || !currentUser) {
+                localStorage.setItem('study_planner_todos', JSON.stringify(todosList));
+                return;
+            }
+
+            const syncStatus = document.getElementById('syncStatus');
+            if (syncStatus) syncStatus.innerText = '저장 중…';
+
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                try {
+                    const docRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'data', 'todos');
+                    await setDoc(docRef, { items: todosList });
+                    if (syncStatus) syncStatus.innerText = '저장됨';
+                } catch (error) {
+                    console.error("Cloud Save Error:", error);
+                    if (syncStatus) syncStatus.innerText = '저장 실패';
+                }
+            }, 600);
+        };
+
+        // ☁️ 클라우드 데이터 로드
+        async function loadCloudTodos() {
+            if (!currentUser || isLocalMode) return;
+            const syncStatus = document.getElementById('syncStatus');
+            try {
+                const docRef = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'data', 'todos');
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    window.todos = docSnap.data().items || [];
+                } else {
+                    window.todos = [];
+                }
+                window.renderTodos();
+                if (syncStatus) syncStatus.innerText = '저장됨';
+            } catch (error) {
+                console.error("Cloud Load Error:", error);
+                if (syncStatus) syncStatus.innerText = '오류 발생';
+            }
+        }
+    </script>
+
+    <div class="container">
+
+        <!-- 로그인 안내 화면 (로그인 전) -->
+        <div id="loginScreen" class="login-overlay">
+            <h2 style="font-size: 1.3rem; font-weight: 800;">📚 스마트 스터디 플래너</h2>
+            <p style="font-size: 0.88rem; color: var(--text-sub);">구글 계정으로 로그인하여 할 일을 클라우드에 안전하게 보관하세요.</p>
+            <button class="google-btn" id="loginBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                구글 계정으로 로그인
+            </button>
+            <div id="authErrorDisplay" class="error-banner" style="display: none;"></div>
+        </div>
+
+        <!-- 메인 앱 영역 (로그인 후) -->
+        <div id="appScreen" style="display: none; flex-direction: column; gap: 16px;">
+
+            <!-- 사용자 프로필 상단 BAR -->
+            <div class="user-profile-bar">
+                <div class="user-info">
+                    <img id="userAvatar" class="user-avatar" src="" alt="Profile">
+                    <span id="userName" class="user-name">사용자</span>
+                    <span id="syncStatus" class="sync-status">저장됨</span>
+                </div>
+                <button class="btn btn-secondary" id="logoutBtn" style="font-size: 0.75rem; padding: 4px 10px;">로그아웃</button>
+            </div>
+
+            <div id="modeStatusBanner" class="error-banner" style="display: none;"></div>
+
+            <!-- 상단 대시보드 헤더 -->
+            <div class="top-header">
+                <div>
+                    <div class="date-display" id="todayDate">----년 --월 --일</div>
+                    <div class="quote-box" id="quoteBox">"시작하는 것이 시작이다."</div>
+                </div>
+                <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">🌙 다크 모드</button>
+            </div>
+
+            <!-- 메인 대시보드 (반응형 2열 / 모바일 1열 그리드) -->
+            <div class="dashboard-grid">
+                <!-- 📅 일정 관리 카드 -->
+                <div class="card-box">
+                    <div class="card-title">📅 일정 관리</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+                        <div class="form-row">
+                            <select id="examSubjectInput"></select>
+                            <select id="examCategoryInput">
+                                <option value="시험">시험</option>
+                                <option value="과제">과제</option>
+                                <option value="자격증">자격증</option>
+                                <option value="개인일정">개인일정</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="examNameInput" placeholder="일정 제목 (예: 중간고사, 과제)">
+                            <input type="date" id="examDateInput">
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="examMemoInput" placeholder="메모 (선택사항)">
+                            <button class="btn btn-primary" onclick="addExamSchedule()">추가</button>
+                        </div>
+                    </div>
+                    <div class="list-container" id="examScheduleList"></div>
+                </div>
+
+                <!-- 🗓️ 요일별 시간표 카드 -->
+                <div class="card-box">
+                    <div class="card-title">🗓️ 요일별 시간표</div>
+                    
+                    <div class="subject-tabs" id="dayTabs"></div>
+
+                    <div class="form-row" style="margin-bottom: 10px;">
+                        <select id="timetableSubjectInput"></select>
+                        <input type="time" id="timetableStartTime">
+                        <button class="btn btn-primary" onclick="addTimetableEntry()">등록</button>
+                    </div>
+
+                    <div class="list-container" id="timetableList"></div>
+                </div>
+            </div>
+
+            <!-- 📝 오늘의 할 일 카드 -->
+            <div class="card-box">
+                <div class="card-title">📝 오늘의 할 일</div>
+                
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span>전체 달성도</span>
+                        <span id="progressText">0 / 0 (0%)</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar"></div>
+                    </div>
+                </div>
+
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <select id="todoSubjectInput" style="max-width: 110px;"></select>
+                    <input type="text" id="todoTextInput" placeholder="할 일을 입력하세요..." onkeyup="if(event.key==='Enter') addTodo()">
+                    <button class="btn btn-primary" onclick="addTodo()">추가</button>
+                </div>
+
+                <div class="subject-tabs" id="filterTabs"></div>
+
+                <div class="list-container" id="todoList"></div>
+            </div>
+
+            <!-- 📖 과목별 요약노트 카드 -->
+            <div class="card-box">
+                <div class="card-title">
+                    <span>📖 과목별 요약노트</span>
+                    <div class="export-tools">
+                        <button class="export-btn" onclick="exportNoteToWord()">📄 MS Word 저장</button>
+                        <button class="export-btn" onclick="exportNoteToPDF()">🖨️ PDF / 인쇄</button>
+                    </div>
+                </div>
+
+                <div class="subject-tabs" id="noteTabs"></div>
+
+                <div class="notebook-wrapper">
+                    <textarea class="note-textarea" id="summaryNoteInput" placeholder="이 과목의 주요 개념, 공식, 핵심 요약을 정리하세요..." oninput="saveCurrentNote()"></textarea>
+                </div>
+            </div>
+
+            <!-- 하단 개인정보 보호 안내 문구 -->
+            <div class="info-footer">
+                🔒 내 할 일은 내 계정에만 저장되고 다른 사람은 볼 수 없습니다.
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const FIXED_SUBJECTS = ['국어', '영어', '수학', '사회', '과학'];
+        const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+
+        const quotes = [
+            '"시작하는 것이 시작이다."',
+            '"오늘 배운 지식이 내일의 너를 만든다."',
+            '"포기하지 않는 한 실패는 없다."',
+            '"꾸준함이 비범함을 만든다."',
+            '"가장 두려운 순간이 가장 성장의 순간이다."'
+        ];
+
+        window.todos = [];
+        let examSchedules = [];
+        let timetableData = { '월': [], '화': [], '수': [], '목': [], '금': [], '토': [], '일': [] };
+        let activeFilterSubject = '전체';
+        let activeNoteSubject = '국어';
+        let activeTimetableDay = '월';
+        let summaryNotes = {};
+
+        window.onload = function() {
+            setTodayDate();
+            setRandomQuote();
+            initTabsAndDropdowns();
+            renderExamSchedules();
+            renderTimetable();
+            renderNotes();
+        };
+
+        window.loadAllLocalData = function() {
+            const savedTodos = localStorage.getItem('study_planner_todos');
+            if (savedTodos) window.todos = JSON.parse(savedTodos);
+
+            const savedExams = localStorage.getItem('study_planner_exams');
+            if (savedExams) examSchedules = JSON.parse(savedExams);
+
+            const savedTimetable = localStorage.getItem('study_planner_timetable');
+            if (savedTimetable) timetableData = JSON.parse(savedTimetable);
+
+            const savedNotes = localStorage.getItem('study_planner_notes');
+            if (savedNotes) summaryNotes = JSON.parse(savedNotes);
+
+            window.renderTodos();
+            renderExamSchedules();
+            renderTimetable();
+            renderNotes();
+        };
+
+        function setTodayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const date = String(today.getDate()).padStart(2, '0');
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const dayName = dayNames[today.getDay()];
+            document.getElementById('todayDate').innerText = `${year}년 ${month}월 ${date}일 (${dayName})`;
+        }
+
+        function setRandomQuote() {
+            const randomIndex = Math.floor(Math.random() * quotes.length);
+            document.getElementById('quoteBox').innerText = quotes[randomIndex];
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('themeToggleBtn').innerText = isDark ? '☀️ 라이트 모드' : '🌙 다크 모드';
+        }
+
+        function initTabsAndDropdowns() {
+            const todoSubSelect = document.getElementById('todoSubjectInput');
+            const examSubSelect = document.getElementById('examSubjectInput');
+            const timetableSubSelect = document.getElementById('timetableSubjectInput');
+
+            todoSubSelect.innerHTML = '';
+            examSubSelect.innerHTML = '';
+            timetableSubSelect.innerHTML = '';
+
+            FIXED_SUBJECTS.forEach(sub => {
+                todoSubSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+                examSubSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+                timetableSubSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+            });
+
+            // 할일 필터 탭
+            const filterContainer = document.getElementById('filterTabs');
+            filterContainer.innerHTML = `<button class="tab-btn ${activeFilterSubject === '전체' ? 'active' : ''}" onclick="setFilterSubject('전체')">전체</button>`;
+            FIXED_SUBJECTS.forEach(sub => {
+                filterContainer.innerHTML += `<button class="tab-btn ${activeFilterSubject === sub ? 'active' : ''}" onclick="setFilterSubject('${sub}')">${sub}</button>`;
+            });
+
+            // 요일 탭
+            const dayContainer = document.getElementById('dayTabs');
+            dayContainer.innerHTML = '';
+            DAYS.forEach(day => {
+                dayContainer.innerHTML += `<button class="tab-btn ${activeTimetableDay === day ? 'active' : ''}" onclick="setTimetableDay('${day}')">${day}요일</button>`;
+            });
+
+            // 노트 탭
+            const noteContainer = document.getElementById('noteTabs');
+            noteContainer.innerHTML = '';
+            FIXED_SUBJECTS.forEach(sub => {
+                noteContainer.innerHTML += `<button class="tab-btn ${activeNoteSubject === sub ? 'active' : ''}" onclick="setNoteSubject('${sub}')">${sub}</button>`;
+            });
+        }
+
+        // --- 일정 관리 ---
+        function addExamSchedule() {
+            const subject = document.getElementById('examSubjectInput').value;
+            const category = document.getElementById('examCategoryInput').value;
+            const name = document.getElementById('examNameInput').value.trim();
+            const date = document.getElementById('examDateInput').value;
+            const memo = document.getElementById('examMemoInput').value.trim();
+
+            if (!name || !date) {
+                alert('일정 제목과 날짜를 입력해 주세요!');
+                return;
+            }
+
+            examSchedules.push({ id: Date.now(), subject, category, name, date, memo });
+            localStorage.setItem('study_planner_exams', JSON.stringify(examSchedules));
+            
+            document.getElementById('examNameInput').value = '';
+            document.getElementById('examMemoInput').value = '';
+            renderExamSchedules();
+        }
+
+        function deleteExamSchedule(id) {
+            examSchedules = examSchedules.filter(item => item.id !== id);
+            localStorage.setItem('study_planner_exams', JSON.stringify(examSchedules));
+            renderExamSchedules();
+        }
+
+        function renderExamSchedules() {
+            const listEl = document.getElementById('examScheduleList');
+            listEl.innerHTML = '';
+
+            if (examSchedules.length === 0) {
+                listEl.innerHTML = `<div style="text-align:center; color: var(--text-sub); font-size:0.8rem; padding: 15px;">등록된 일정이 없습니다.</div>`;
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            examSchedules.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(item => {
+                const targetDate = new Date(item.date);
+                targetDate.setHours(0,0,0,0);
+                const diffDays = Math.ceil((targetDate - today) / (1000 * 60 * 60 * 24));
+
+                let dDayText = `D-${diffDays}`;
+                if (diffDays === 0) dDayText = 'D-DAY';
+                else if (diffDays < 0) dDayText = `D+${Math.abs(diffDays)}`;
+
+                listEl.innerHTML += `
+                    <div class="item-card">
+                        <div style="display:flex; flex-direction:column; gap:2px; flex:1; min-width:0;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span class="subject-badge">${item.subject}</span>
+                                <span class="exam-badge">${item.category}</span>
+                                <span style="font-weight:700; font-size:0.85rem;">${item.name}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color: var(--text-sub);">
+                                📅 ${item.date} ${item.memo ? `| 📝 ${item.memo}` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:0.8rem; font-weight:800; color:var(--accent-orange);">${dDayText}</span>
+                            <button class="delete-btn" onclick="deleteExamSchedule(${item.id})">✕</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- 요일별 시간표 ---
+        function setTimetableDay(day) {
+            activeTimetableDay = day;
+            initTabsAndDropdowns();
+            renderTimetable();
+        }
+
+        function addTimetableEntry() {
+            const subject = document.getElementById('timetableSubjectInput').value;
+            const time = document.getElementById('timetableStartTime').value;
+
+            if (!time) {
+                alert('시작 시간을 선택해 주세요!');
+                return;
+            }
+
+            if (!timetableData[activeTimetableDay]) timetableData[activeTimetableDay] = [];
+
+            timetableData[activeTimetableDay].push({ id: Date.now(), subject, time });
+            timetableData[activeTimetableDay].sort((a,b) => a.time.localeCompare(b.time));
+
+            localStorage.setItem('study_planner_timetable', JSON.stringify(timetableData));
+            renderTimetable();
+        }
+
+        function deleteTimetableEntry(id) {
+            timetableData[activeTimetableDay] = timetableData[activeTimetableDay].filter(item => item.id !== id);
+            localStorage.setItem('study_planner_timetable', JSON.stringify(timetableData));
+            renderTimetable();
+        }
+
+        function renderTimetable() {
+            const listEl = document.getElementById('timetableList');
+            listEl.innerHTML = '';
+
+            const dayList = timetableData[activeTimetableDay] || [];
+
+            if (dayList.length === 0) {
+                listEl.innerHTML = `<div style="text-align:center; color: var(--text-sub); font-size:0.8rem; padding: 15px;">${activeTimetableDay}요일에 등록된 수업이 없습니다.</div>`;
+                return;
+            }
+
+            dayList.forEach(item => {
+                listEl.innerHTML += `
+                    <div class="item-card">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-weight:700; font-size:0.82rem; color:var(--primary-color);">${item.time}</span>
+                            <span class="subject-badge">${item.subject}</span>
+                        </div>
+                        <button class="delete-btn" onclick="deleteTimetableEntry(${item.id})">✕</button>
+                    </div>
+                `;
+            });
+        }
+
+        // --- 오늘의 할 일 ---
+        function addTodo() {
+            const subject = document.getElementById('todoSubjectInput').value;
+            const textInput = document.getElementById('todoTextInput');
+            const text = textInput.value.trim();
+
+            if (!text) return;
+
+            window.todos.push({
+                id: Date.now(),
+                subject,
+                text,
+                completed: false
+            });
+
+            textInput.value = '';
+            window.saveTodosToCloud(window.todos);
+            window.renderTodos();
+        }
+
+        function toggleTodo(id) {
+            window.todos = window.todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+            window.saveTodosToCloud(window.todos);
+            window.renderTodos();
+        }
+
+        function deleteTodo(id) {
+            window.todos = window.todos.filter(t => t.id !== id);
+            window.saveTodosToCloud(window.todos);
+            window.renderTodos();
+        }
+
+        function setFilterSubject(sub) {
+            activeFilterSubject = sub;
+            initTabsAndDropdowns();
+            window.renderTodos();
+        }
+
+        window.renderTodos = function() {
+            const listEl = document.getElementById('todoList');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            let filtered = window.todos;
+            if (activeFilterSubject !== '전체') {
+                filtered = window.todos.filter(t => t.subject === activeFilterSubject);
+            }
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div style="text-align:center; color: var(--text-sub); font-size:0.8rem; padding: 20px;">할 일이 없습니다.</div>`;
+            } else {
+                filtered.forEach(todo => {
+                    listEl.innerHTML += `
+                        <div class="todo-item ${todo.completed ? 'completed' : ''}">
+                            <div class="todo-left">
+                                <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id})">
+                                <span class="subject-badge">${todo.subject}</span>
+                                <span class="todo-text">${escapeHtml(todo.text)}</span>
+                            </div>
+                            <button class="delete-btn" onclick="deleteTodo(${todo.id})">✕</button>
+                        </div>
+                    `;
+                });
+            }
+
+            // 달성도 프로그레스 바 갱신
+            const total = window.todos.length;
+            const completed = window.todos.filter(t => t.completed).length;
+            const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+            document.getElementById('progressText').innerText = `${completed} / ${total} (${percent}%)`;
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        };
+
+        // --- 과목별 요약노트 ---
+        function setNoteSubject(sub) {
+            activeNoteSubject = sub;
+            initTabsAndDropdowns();
+            renderNotes();
+        }
+
+        function saveCurrentNote() {
+            const text = document.getElementById('summaryNoteInput').value;
+            summaryNotes[activeNoteSubject] = text;
+            localStorage.setItem('study_planner_notes', JSON.stringify(summaryNotes));
+        }
+
+        function renderNotes() {
+            const noteInput = document.getElementById('summaryNoteInput');
+            noteInput.value = summaryNotes[activeNoteSubject] || '';
+        }
+
+        function exportNoteToWord() {
+            const noteContent = document.getElementById('summaryNoteInput').value;
+            if (!noteContent.trim()) {
+                alert('내용이 없는 노트는 저장할 수 없습니다.');
+                return;
+            }
+
+            const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' "+
+                "xmlns:w='urn:schemas-microsoft-com:office:word' "+
+                "xmlns='http://www.w3.org/TR/REC-html40'>"+
+                "<head><meta charset='utf-8'><title>요약노트</title></head><body>";
+            const footer = "</body></html>";
+            const sourceHTML = header + `<h2>[${activeNoteSubject}] 요약노트</h2><p>` + noteContent.replace(/\n/g, "<br>") + "</p>" + footer;
+
+            const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+            const fileDownload = document.createElement("a");
+            document.body.appendChild(fileDownload);
+            fileDownload.href = source;
+            fileDownload.download = `${activeNoteSubject}_요약노트.doc`;
+            fileDownload.click();
+            document.body.removeChild(fileDownload);
+        }
+
+        function exportNoteToPDF() {
+            window.print();
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
